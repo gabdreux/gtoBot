@@ -31,7 +31,7 @@ driver = webdriver.Firefox(service=service, options=options)
 
 
 url = 'https://app.gtowizard.com/'
-url = 'https://google.com/'
+# url = 'https://google.com/'
 
 driver.get(url)
 
@@ -113,7 +113,7 @@ def extract_other_info(element):
 
 
 ######################################################################## Chama
-def extract_and_print_info(driver, excel_file_path):
+def extract_and_print_info(driver, excel_file_path, new_sheet_name):
     try:
         # Esperar até 20 segundos para o elemento aparecer
         WebDriverWait(driver, 20).until(
@@ -135,10 +135,12 @@ def extract_and_print_info(driver, excel_file_path):
             print(other)
 
         # Salvar dados no Excel
-        save_to_excel(excel_file_path, cards_info, other_info)
+        save_to_excel(excel_file_path, cards_info, other_info, new_sheet_name)
+        return True, "Informações extraídas e salvas com sucesso."
     
     except Exception as e:
         print(f"Erro ao extrair informações: {e}")
+        return False, f"Erro ao extrair informações: {e}"
 
 
 
@@ -201,7 +203,8 @@ def config_handler():
         return
 
     # Chamada para salvar no Excel com o nome da nova aba
-    success, message = save_to_excel(excel_file_path, "Informações", ["Outras informações"], new_sheet_name)
+    success, message = extract_and_print_info(driver, excel_file_path, new_sheet_name)
+
     
     if success:
         label_error.config(text=message, fg="green")
