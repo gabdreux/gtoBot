@@ -6,8 +6,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import tkinter as tk
+import os
 import openpyxl
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
+from tkinter import messagebox
 
 
 
@@ -29,14 +31,14 @@ driver = webdriver.Firefox(service=service, options=options)
 
 
 url = 'https://app.gtowizard.com/'
-# url = 'https://google.com/'
+url = 'https://google.com/'
 
 driver.get(url)
 
 
 
 
-# Função para extrair informações das três primeiras cartas
+########################################################## Função para extrair informações das três primeiras cartas
 def extract_first_three_cards_info(driver):
     try:
         # Esperar até 20 segundos para o elemento aparecer
@@ -80,7 +82,12 @@ def extract_first_three_cards_info(driver):
         return None
 
 
-# Função para extrair outras informações únicas ignorando textos e capturando apenas números
+
+
+
+
+
+################################################################## Função para extrair outras informações únicas ignorando textos e capturando apenas números
 def extract_other_info(element):
     other_info = []
     other_texts = element.find_elements(By.XPATH, ".//*[not(contains(@class, 'cardsymbols_block')) and not(contains(@class, 'cardsymbols_value')) and not(contains(@class, 'cardsymbols_symbol'))]")
@@ -101,6 +108,11 @@ def extract_other_info(element):
 
 
 
+
+
+
+
+######################################################################## Chama
 def extract_and_print_info(driver, excel_file_path):
     try:
         # Esperar até 20 segundos para o elemento aparecer
@@ -128,18 +140,28 @@ def extract_and_print_info(driver, excel_file_path):
     except Exception as e:
         print(f"Erro ao extrair informações: {e}")
 
-def save_to_excel(excel_file_path, cards_info, other_info):
+
+
+
+
+
+
+
+##################################################################### Função para salvar no excel
+def save_to_excel(excel_file_path, cards_info, other_info, new_sheet_name):
     # Verificar a extensão do arquivo
     if not excel_file_path.endswith(('.xlsx', '.xlsm', '.xltx', '.xltm')):
         raise ValueError("O formato do arquivo não é suportado. Use um arquivo com extensão .xlsx, .xlsm, .xltx, ou .xltm")
 
-    # Abrir o arquivo Excel ou criar um novo se não existir
-    try:
-        workbook = openpyxl.load_workbook(excel_file_path)
-    except FileNotFoundError:
+    # Verificar se o arquivo existe
+    if not os.path.exists(excel_file_path):
         workbook = Workbook()
-
-    sheet = workbook.active
+        workbook.save(excel_file_path)
+        sheet = workbook.active
+        sheet.title = new_sheet_name
+    else:
+        workbook = load_workbook(excel_file_path)
+        sheet = workbook.create_sheet(title=new_sheet_name)
 
     # Determinar a primeira linha vazia na coluna A
     first_empty_row = sheet.max_row + 1
@@ -147,46 +169,72 @@ def save_to_excel(excel_file_path, cards_info, other_info):
     for idx, info in enumerate(other_info):
         sheet.cell(row=first_empty_row, column=idx + 2).value = info
 
-
     # Salvar o arquivo Excel
     workbook.save(excel_file_path)
 
 
 
 
-
-
-def btn_handler():
+########################################################## Caixa de diálogo
+def config_handler():
     global excel_file_path
-    file_name = entry.get()  # Obter o nome do arquivo da entrada
-    if file_name:
-        # Diretório base onde o arquivo está localizado
-        base_dir = "C:\\Users\\User\\Desktop\\"
-        
-        # Construir o caminho completo
-        excel_file_path = f"{base_dir}{file_name}.xlsx"
-        print(excel_file_path)
 
-        extract_and_print_info(driver, excel_file_path)
-        # Fechar a janela
-        root.destroy()
+    # Limpar mensagens de erro anteriores
+    label_error.config(text="")
+
+    file_name = entry.get()  # Obter o nome do arquivo da entrada
+    if not file_name:
+        label_error.config(text="Insira um nome para o arquivo Excel.", fg="red")
+        return
+
+    # Diretório base onde o arquivo está localizado
+    base_dir = "C:\\Users\\User\\Desktop\\"
+    
+    # Construir o caminho completo
+    excel_file_path = f"{base_dir}{file_name}.xlsx"
+
+    # Obter o nome da nova aba
+    new_sheet_name = entry_sheet_name.get()
+
+    if not new_sheet_name:
+        label_error.config(text="Insira um nome para a nova aba.", fg="red")
+        return
+
+    # Chamada para salvar no Excel com o nome da nova aba
+    success, message = save_to_excel(excel_file_path, "Informações", ["Outras informações"], new_sheet_name)
+    
+    if success:
+        label_error.config(text=message, fg="green")
+    else:
+        label_error.config(text=message, fg="red")
+
 
 # Configurar a interface gráfica com tkinter
 root = tk.Tk()
 root.title("Configurações")
-root.geometry("300x150")
+root.geometry("400x250")
 
 # Adicionar um campo de entrada para o caminho do arquivo Excel
-label = tk.Label(root, text="Digite o nome do arquivo Excel (sem extensão):")
-label.pack(pady=10)
+label_file_name = tk.Label(root, text="Nome do arquivo Excel:")
+label_file_name.pack(pady=(20, 5))
 
 entry = tk.Entry(root, width=30)
-entry.pack(pady=10)
+entry.pack(pady=5)
+
+# Adicionar um campo de entrada para o nome da aba no Excel
+label_sheet_name = tk.Label(root, text="Nome da nova aba:")
+label_sheet_name.pack(pady=(20, 5))
+
+entry_sheet_name = tk.Entry(root, width=30)
+entry_sheet_name.pack(pady=5)
+
+# Label para exibir mensagens de erro
+label_error = tk.Label(root, text="", fg="red")
+label_error.pack(pady=10)
 
 # Adicionar um botão à janela do tkinter
-button = tk.Button(root, text="Tudo Pronto!", command=btn_handler)
-button.pack(pady=20)
+button = tk.Button(root, text="Tudo Pronto!", command=config_handler)
+button.pack(pady=5)
 
 # Iniciar o loop do tkinter
 root.mainloop()
-
