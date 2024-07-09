@@ -12,9 +12,6 @@ from openpyxl import Workbook
 
 
 geckodriver_path = r'C:\Users\User\Desktop\RonaldoBot\geckodriver.exe'
-# service = Service(r'C:\Users\User\Desktop\botRafa\geckodriver.exe')
-
-
 profile_path = r'C:\Users\User\AppData\Roaming\Mozilla\Firefox\Profiles\ddxg8c5z.default-release-1'
 
 
@@ -27,11 +24,8 @@ service = Service(geckodriver_path)
 options = Options()
 options.profile = profile_path
 
-
-
 # driver = webdriver.Firefox(service=service, options=options)
 driver = webdriver.Firefox(service=service, options=options)
-
 
 
 url = 'https://app.gtowizard.com/'
@@ -160,48 +154,37 @@ def save_to_excel(excel_file_path, cards_info, other_info):
 
 
 
-
-
-
-
-
-
-
-
-
-excel_file_path = r'C:\Users\User\Desktop\pokerDados.xlsx' 
-
-
-
-
-
-
-
-
-
-
-
-
-
 def btn_handler():
-    # print("oi")
-    extract_and_print_info(driver, excel_file_path)
-    root.destroy()  # Fechar a janela
+    global excel_file_path
+    file_name = entry.get()  # Obter o nome do arquivo da entrada
+    if file_name:
+        # Diretório base onde o arquivo está localizado
+        base_dir = "C:\\Users\\User\\Desktop\\"
+        
+        # Construir o caminho completo
+        excel_file_path = f"{base_dir}{file_name}.xlsx"
+        print(excel_file_path)
 
+        extract_and_print_info(driver, excel_file_path)
+        # Fechar a janela
+        root.destroy()
 
 # Configurar a interface gráfica com tkinter
 root = tk.Tk()
-root.title("Confirurações")
-root.geometry("250x250")
+root.title("Configurações")
+root.geometry("300x150")
+
+# Adicionar um campo de entrada para o caminho do arquivo Excel
+label = tk.Label(root, text="Digite o nome do arquivo Excel (sem extensão):")
+label.pack(pady=10)
+
+entry = tk.Entry(root, width=30)
+entry.pack(pady=10)
 
 # Adicionar um botão à janela do tkinter
 button = tk.Button(root, text="Tudo Pronto!", command=btn_handler)
-button.pack(pady=100) 
+button.pack(pady=20)
 
 # Iniciar o loop do tkinter
 root.mainloop()
 
-
-
-# Chamada da função principal
-# extract_and_print_info(url)
