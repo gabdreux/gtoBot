@@ -141,10 +141,12 @@ def save_to_excel(excel_file_path, cards_info, other_info):
 
     sheet = workbook.active
 
-    # Escrever os dados na segunda linha
-    sheet.cell(row=2, column=1).value = cards_info
+    # Determinar a primeira linha vazia na coluna A
+    first_empty_row = sheet.max_row + 1
+    sheet.cell(row=first_empty_row, column=1).value = cards_info
     for idx, info in enumerate(other_info):
-        sheet.cell(row=2, column=idx + 2).value = info
+        sheet.cell(row=first_empty_row, column=idx + 2).value = info
+
 
     # Salvar o arquivo Excel
     workbook.save(excel_file_path)
