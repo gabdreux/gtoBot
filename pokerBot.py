@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import re
+import tkinter as tk
 
 
 
@@ -27,24 +28,15 @@ options.profile = profile_path
 
 
 
-
 # driver = webdriver.Firefox(service=service, options=options)
 driver = webdriver.Firefox(service=service, options=options)
 
 
 
 url = 'https://app.gtowizard.com/'
+# url = 'https://google.com/'
 
 driver.get(url)
-
-
-
-
-
-
-# Esperar um pouco para garantir que a página carregue completamente
-time.sleep(60)
-
 
 
 
@@ -138,5 +130,31 @@ def extract_and_print_info(url):
     except Exception as e:
         print(f"Erro ao extrair informações: {e}")
 
+
+
+
+
+
+
+def btn_handler():
+    print("oi")
+    extract_and_print_info(url)
+    root.destroy()  # Fechar a janela
+
+
+# Configurar a interface gráfica com tkinter
+root = tk.Tk()
+root.title("Confirurações")
+root.geometry("250x250")
+
+# Adicionar um botão à janela do tkinter
+button = tk.Button(root, text="Tudo Pronto!", command=btn_handler)
+button.pack(pady=100) 
+
+# Iniciar o loop do tkinter
+root.mainloop()
+
+
+
 # Chamada da função principal
-extract_and_print_info(url)
+# extract_and_print_info(url)
