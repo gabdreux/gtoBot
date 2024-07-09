@@ -5,8 +5,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import re
 import tkinter as tk
+import openpyxl
+from openpyxl import Workbook
 
 
 
@@ -106,8 +107,7 @@ def extract_other_info(element):
 
 
 
-# Função principal para extrair e imprimir todas as informações
-def extract_and_print_info(url):
+def extract_and_print_info(driver, excel_file_path):
     try:
         # Esperar até 20 segundos para o elemento aparecer
         WebDriverWait(driver, 20).until(
@@ -119,16 +119,63 @@ def extract_and_print_info(url):
         # Extrair e imprimir informações das três primeiras cartas
         first_three_cards_info = extract_first_three_cards_info(driver)
         if first_three_cards_info:
-            for card in first_three_cards_info:
-                print(card)
+            cards_info = ' - '.join(first_three_cards_info)
+            print(cards_info)
 
         # Extrair e imprimir outras informações únicas
         other_info = extract_other_info(container)
+        # other_info = [str(info) for info in other_info]  # Convertendo para string
         for other in other_info:
             print(other)
+
+        # Salvar dados no Excel
+        save_to_excel(excel_file_path, cards_info, other_info)
     
     except Exception as e:
         print(f"Erro ao extrair informações: {e}")
+
+def save_to_excel(excel_file_path, cards_info, other_info):
+    # Verificar a extensão do arquivo
+    if not excel_file_path.endswith(('.xlsx', '.xlsm', '.xltx', '.xltm')):
+        raise ValueError("O formato do arquivo não é suportado. Use um arquivo com extensão .xlsx, .xlsm, .xltx, ou .xltm")
+
+    # Abrir o arquivo Excel ou criar um novo se não existir
+    try:
+        workbook = openpyxl.load_workbook(excel_file_path)
+    except FileNotFoundError:
+        workbook = Workbook()
+
+    sheet = workbook.active
+
+    # Escrever os dados na segunda linha
+    sheet.cell(row=2, column=1).value = cards_info
+    for idx, info in enumerate(other_info):
+        sheet.cell(row=2, column=idx + 2).value = info
+
+    # Salvar o arquivo Excel
+    workbook.save(excel_file_path)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+excel_file_path = r'C:\Users\User\Desktop\pokerDados.xlsx' 
+
+
+
+
+
+
 
 
 
@@ -137,8 +184,8 @@ def extract_and_print_info(url):
 
 
 def btn_handler():
-    print("oi")
-    extract_and_print_info(url)
+    # print("oi")
+    extract_and_print_info(driver, excel_file_path)
     root.destroy()  # Fechar a janela
 
 
