@@ -26,6 +26,10 @@ driver = webdriver.Firefox(service=service, options=options)
 url = 'https://app.gtowizard.com/'
 driver.get(url)
 
+
+
+
+
 # Função para extrair informações das três primeiras cartas
 def extract_first_three_cards_info(container):
     card_info = []
@@ -52,54 +56,6 @@ def extract_first_three_cards_info(container):
 
 
 
-
-
-
-
-
-
-# Função para extrair outras informações únicas ignorando textos e capturando apenas números
-
-#Sem repetir nenhum
-# def extract_other_info(element):
-#     other_info = []
-#     other_texts = element.find_elements(By.XPATH, ".//*[not(contains(@class, 'cardsymbols_block')) and not(contains(@class, 'cardsymbols_value')) and not(contains(@class, 'cardsymbols_symbol'))]")
-#     # WebDriverWait(driver, 20).until(
-#     #         EC.presence_of_element_located((By.CSS_SELECTOR, '.gw_table_body_cell'))
-#     # )
-#     # other_texts = driver.find_elements(By.CSS_SELECTOR, '.gw_table_body_cell')
-#     for other_text in other_texts:
-#         text = other_text.text.strip()
-#         try:
-#             number_value = float(text)
-#             if str(number_value) not in other_info:
-#                 other_info.append(str(number_value))
-#         except ValueError:
-#             pass
-#     return other_info
-
-
-#Mostrando todos multiplcados
-def extract_other_info(element):
-    other_info = []
-    other_texts = element.find_elements(By.XPATH, ".//*[not(contains(@class, 'cardsymbols_block')) and not(contains(@class, 'cardsymbols_value')) and not(contains(@class, 'cardsymbols_symbol'))]")
-
-    for other_text in other_texts:
-        text = other_text.text.strip()
-        # Remover letras de a-z e A-Z
-        cleaned_text = re.sub(r'[a-zA-Z]', '', text).strip()
-        if cleaned_text:
-            other_info.append(cleaned_text)
-    return other_info
-
-
-
-
-
-
-
-
-
 # Função para salvar no excel
 def save_to_excel(workbook, sheet_name, cards_info, other_info):
     if sheet_name not in workbook.sheetnames:
@@ -117,10 +73,7 @@ def save_to_excel(workbook, sheet_name, cards_info, other_info):
 
 
 
-
-
-
-# Função para extrair e salvar informações de todas as divs
+# Atualização da função extract_and_save_all_info para usar índice dinâmico
 def extract_and_save_all_info(driver, excel_file_path, sheet_name):
     try:
         WebDriverWait(driver, 20).until(
@@ -128,9 +81,7 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
         )
         containers = driver.find_elements(By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer')
 
-        print(f"Número de containers encontrados!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: {len(containers)}")
-
-        time.sleep(10);
+        print(f"Número de containers encontrados: {len(containers)}")
 
         if not os.path.exists(excel_file_path):
             workbook = Workbook()
@@ -140,17 +91,41 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
         else:
             workbook = load_workbook(excel_file_path)
 
-        for container in containers:
+        for i, container in enumerate(containers, start=1):
+            # Construir o XPath dinâmico com base no índice i
+            xpath = f"(//div[@class='gw_table_body_row repfloptblrow gw_table_body_row_hoverable gw_hvr gw_hvr_pcn cursor-pointer'])[{i}]"
+            div_pai = driver.find_element(By.XPATH, xpath)
+
+            # Função para extrair outras informações únicas ignorando textos e capturando apenas números
+            def extract_other_info():
+                try:
+                    # Encontrar todas as divs filhas com as classes específicas dentro da div pai encontrada
+                    divs_filhas_position = div_pai.find_elements(By.XPATH, ".//div[@class='position-absolute w-100 f-center']")
+                    divs_filhas_text_center = div_pai.find_elements(By.XPATH, ".//div[@class='text-center']")
+
+                    other_info = []
+                    for div_filha in divs_filhas_position + divs_filhas_text_center:
+                        # Obter o texto da div filha
+                        texto = div_filha.text.strip()
+                        other_info.append(texto)
+
+                    return other_info
+
+                except Exception as e:
+                    print(f"Erro ao extrair informações: {str(e)}")
+                    return []
+
             first_three_cards_info = extract_first_three_cards_info(container)
             if first_three_cards_info:
                 cards_info = ' - '.join(first_three_cards_info)
                 print(cards_info)
-            other_info = extract_other_info(container)
+            other_info = extract_other_info()
             for other in other_info:
                 print(other)
             save_to_excel(workbook, sheet_name, cards_info, other_info)
 
         return True, "Informações extraídas e salvas com sucesso."
+    
     except Exception as e:
         print(f"Erro ao extrair informações: {e}")
         return False, f"Erro ao extrair informações: {e}"
@@ -180,6 +155,10 @@ def config_handler():
         label_error.config(text=message, fg="green")
     else:
         label_error.config(text=message, fg="red")
+
+
+
+
 
 # Configurar a interface gráfica com tkinter
 root = tk.Tk()
