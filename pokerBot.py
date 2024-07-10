@@ -10,6 +10,7 @@ from openpyxl import Workbook, load_workbook
 import time
 import re
 from collections import Counter
+import pyautogui
 
 
 # Caminhos para o geckodriver e perfil do Firefox
@@ -91,7 +92,14 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
         else:
             workbook = load_workbook(excel_file_path)
 
+        
+        # Contador para controlar as iterações
+        iteration_count = 0 
+        
+
         for i, container in enumerate(containers, start=1):
+            iteration_count += 1
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" + str(iteration_count) )   
             # Construir o XPath dinâmico com base no índice i
             xpath = f"(//div[@class='gw_table_body_row repfloptblrow gw_table_body_row_hoverable gw_hvr gw_hvr_pcn cursor-pointer'])[{i}]"
             div_pai = driver.find_element(By.XPATH, xpath)
@@ -122,7 +130,22 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
             other_info = extract_other_info()
             for other in other_info:
                 print(other)
+
+                
             save_to_excel(workbook, sheet_name, cards_info, other_info)
+
+
+
+        if iteration_count % 105 == 0:
+            time.sleep(5)
+            print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOPPPPPPPPPPPPPPAAAAAAAAAAAAAAAA")
+            for _ in range(12):  # ajuste o número de vezes conforme necessário
+                pyautogui.scroll(-100)
+            time.sleep(3)
+            print("CAPTURANDO NOVAMENTE!!!!!!!!!!")
+            btn_call()    
+
+
 
         return True, "Informações extraídas e salvas com sucesso."
     
@@ -134,10 +157,9 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
 
 
 
-
-
-# Caixa de diálogo
-def config_handler():
+def btn_call():
+    time.sleep(5)
+    print("INICIANDO SEQUENCIA!")
     global excel_file_path
     label_error.config(text="")
     file_name = entry.get()
@@ -155,6 +177,17 @@ def config_handler():
         label_error.config(text=message, fg="green")
     else:
         label_error.config(text=message, fg="red")
+
+
+
+
+# Caixa de diálogo
+def config_handler():
+    time.sleep(5)
+    for _ in range(1):  # ajuste o número de vezes conforme necessário
+        pyautogui.scroll(-100)
+    time.sleep(3)    
+    btn_call()
 
 
 
