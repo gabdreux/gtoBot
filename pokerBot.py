@@ -58,15 +58,17 @@ def extract_first_three_cards_info(container):
 
 
 # Função para salvar no excel
-def save_to_excel(workbook, sheet_name, cards_info, other_info):
+def save_to_excel(workbook, sheet_name, all_data_to_print):
     if sheet_name not in workbook.sheetnames:
         sheet = workbook.create_sheet(title=sheet_name)
     else:
         sheet = workbook[sheet_name]
     first_empty_row = sheet.max_row + 1
-    sheet.cell(row=first_empty_row, column=1).value = cards_info
-    for idx, info in enumerate(other_info):
-        sheet.cell(row=first_empty_row, column=idx + 2).value = info
+
+    for row_data in all_data_to_print:
+        sheet.append(row_data)
+
+
     workbook.save(excel_file_path)
 
 
@@ -75,80 +77,111 @@ def save_to_excel(workbook, sheet_name, cards_info, other_info):
 
 
 # Atualização da função extract_and_save_all_info para usar índice dinâmico
-def extract_and_save_all_info(driver, excel_file_path, sheet_name):
+# Função para extrair outras informações únicas ignorando textos e capturando apenas números
+def extract_other_info(div_pai):
     try:
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer'))
-        )
-        containers = driver.find_elements(By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer')
+        # Encontrar todas as divs filhas com as classes específicas dentro da div pai encontrada
+        divs_filhas_position = div_pai.find_elements(By.XPATH, ".//div[@class='position-absolute w-100 f-center']")
+        divs_filhas_text_center = div_pai.find_elements(By.XPATH, ".//div[@class='text-center']")
 
-        print(f"Número de containers encontrados: {len(containers)}")
+        other_info = []
+        for div_filha in divs_filhas_position + divs_filhas_text_center:
+            # Obter o texto da div filha
+            texto = div_filha.text.strip()
+            other_info.append(texto)
 
-        if not os.path.exists(excel_file_path):
-            workbook = Workbook()
-            sheet = workbook.active
-            sheet.title = sheet_name
-            workbook.save(excel_file_path)
-        else:
-            workbook = load_workbook(excel_file_path)
+        return other_info
 
-        
-        # Contador para controlar as iterações
-        iteration_count = 0 
-        
-
-        for i, container in enumerate(containers, start=1):
-            iteration_count += 1
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" + str(iteration_count) )   
-            # Construir o XPath dinâmico com base no índice i
-            xpath = f"(//div[@class='gw_table_body_row repfloptblrow gw_table_body_row_hoverable gw_hvr gw_hvr_pcn cursor-pointer'])[{i}]"
-            div_pai = driver.find_element(By.XPATH, xpath)
-
-            # Função para extrair outras informações únicas ignorando textos e capturando apenas números
-            def extract_other_info():
-                try:
-                    # Encontrar todas as divs filhas com as classes específicas dentro da div pai encontrada
-                    divs_filhas_position = div_pai.find_elements(By.XPATH, ".//div[@class='position-absolute w-100 f-center']")
-                    divs_filhas_text_center = div_pai.find_elements(By.XPATH, ".//div[@class='text-center']")
-
-                    other_info = []
-                    for div_filha in divs_filhas_position + divs_filhas_text_center:
-                        # Obter o texto da div filha
-                        texto = div_filha.text.strip()
-                        other_info.append(texto)
-
-                    return other_info
-
-                except Exception as e:
-                    print(f"Erro ao extrair informações: {str(e)}")
-                    return []
-
-            first_three_cards_info = extract_first_three_cards_info(container)
-            if first_three_cards_info:
-                cards_info = ' - '.join(first_three_cards_info)
-                print(cards_info)
-            other_info = extract_other_info()
-            for other in other_info:
-                print(other)
-
-                
-            save_to_excel(workbook, sheet_name, cards_info, other_info)
+    except Exception as e:
+        print(f"Erro ao extrair informações: {str(e)}")
+        return []
+    
 
 
+# Função principal para extrair e salvar todas as informações
+def extract_and_save_all_info(driver, excel_file_path, sheet_name):
+    all_data_to_print = []
+    previous_first_data = None
 
-        if iteration_count % 105 == 0:
-            time.sleep(5)
-            print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOPPPPPPPPPPPPPPAAAAAAAAAAAAAAAA")
-            for _ in range(12):  # ajuste o número de vezes conforme necessário
-                pyautogui.scroll(-100)
-            time.sleep(3)
-            print("CAPTURANDO NOVAMENTE!!!!!!!!!!")
-            btn_call()    
+    # Ler dados existentes
+    existing_data = set()
+    if os.path.exists(excel_file_path):
+        workbook = load_workbook(excel_file_path)
+        sheet = workbook[sheet_name]
+        for row in sheet.iter_rows(values_only=True):
+            existing_data.add(tuple(row))  # Adiciona como tupla para facilitar a verificação
+
+    try:
+        while True:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer'))
+            )
+            containers = driver.find_elements(By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer')
+
+            print(f"Número de containers encontrados: {len(containers)}")
+
+            # Verifique se o arquivo existe, caso contrário, crie um novo
+            if not os.path.exists(excel_file_path):
+                workbook = Workbook()
+                sheet = workbook.active
+                sheet.title = sheet_name
+                workbook.save(excel_file_path)
+            else:
+                workbook = load_workbook(excel_file_path)
+
+            # Contador para controlar as iterações
+            iteration_count = 0 
+            data_changed = False
+
+            for i, container in enumerate(containers, start=1):
+                iteration_count += 1
+
+                xpath = f"(//div[@class='gw_table_body_row repfloptblrow gw_table_body_row_hoverable gw_hvr gw_hvr_pcn cursor-pointer'])[{i}]"
+                div_pai = driver.find_element(By.XPATH, xpath)
+
+                first_three_cards_info = extract_first_three_cards_info(container)
+                if first_three_cards_info:
+                    cards_info = ' - '.join(first_three_cards_info)
+
+                other_info = extract_other_info(div_pai)
+
+                current_data = [cards_info] + other_info
+
+                if current_data == previous_first_data:
+                    print("Dados repetidos. Encerrando extração.")
+                    print("CURRENT:", current_data) 
+                    print("PREVIOUS:", previous_first_data) 
+                    data_changed = True
+                    break
+
+                # Verificar se current_data já está na planilha
+                if tuple(current_data) not in existing_data:
+                    all_data_to_print.append(current_data)
+                    existing_data.add(tuple(current_data))  # Adiciona à lista de dados existentes
+
+                if iteration_count == 1:
+                    previous_first_data = current_data
+                    print("FIRST:", previous_first_data)
+
+            if data_changed:
+                break
+
+            save_to_excel(workbook, sheet_name, all_data_to_print)
+            print("SALVAMENTO CHAMADO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+            all_data_to_print = []
+
+            # Scroll down
+            if iteration_count % len(containers) == 0: 
+                for _ in range(24):
+                    pyautogui.scroll(-100)
+                time.sleep(0.5)
+
 
 
 
         return True, "Informações extraídas e salvas com sucesso."
-    
+
     except Exception as e:
         print(f"Erro ao extrair informações: {e}")
         return False, f"Erro ao extrair informações: {e}"
@@ -156,10 +189,9 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
 
 
 
-
 def btn_call():
-    time.sleep(5)
-    print("INICIANDO SEQUENCIA!")
+    # time.sleep(5)
+    # print("INICIANDO SEQUENCIA!")
     global excel_file_path
     label_error.config(text="")
     file_name = entry.get()
@@ -183,10 +215,6 @@ def btn_call():
 
 # Caixa de diálogo
 def config_handler():
-    time.sleep(5)
-    for _ in range(1):  # ajuste o número de vezes conforme necessário
-        pyautogui.scroll(-100)
-    time.sleep(3)    
     btn_call()
 
 
