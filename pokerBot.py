@@ -8,14 +8,29 @@ import tkinter as tk
 import os
 from openpyxl import Workbook, load_workbook
 import time
-import re
-from collections import Counter
 import pyautogui
+from tkinter import messagebox
+import threading
+
+
 
 
 # Caminhos para o geckodriver e perfil do Firefox
-geckodriver_path = r'C:\Users\User\Desktop\RonaldoBot\geckodriver.exe'
-profile_path = r'C:\Users\User\AppData\Roaming\Mozilla\Firefox\Profiles\ddxg8c5z.default-release-1'
+geckodriver_path = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
+profile_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'profile.txt')
+
+
+# Lê o caminho do perfil a partir do arquivo de texto
+try:
+    with open(profile_file_path, 'r') as file:
+        profile_path = file.readline().strip()  # Lê a primeira linha e remove espaços em branco
+    print(f"Caminho do perfil do Firefox: {profile_path}")
+except FileNotFoundError:
+    print("Arquivo 'profile.txt' não encontrado.")
+except Exception as e:
+    print(f"Ocorreu um erro: {e}")
+
+
 
 # Configurar o serviço e perfil do Firefox
 service = Service(geckodriver_path)
@@ -26,6 +41,107 @@ driver = webdriver.Firefox(service=service, options=options)
 
 url = 'https://app.gtowizard.com/'
 driver.get(url)
+
+
+
+
+
+
+
+
+
+def perform_scroll(scroll_value):
+    time.sleep(0.5)
+    pyautogui.keyDown('ctrl')
+    pyautogui.scroll(scroll_value)
+    time.sleep(0.5)
+    pyautogui.keyUp('ctrl')
+
+
+
+
+adjustment_complete = threading.Event()
+# Função para contar as divs e ajustar o zoom
+def count_and_adjust_divs():
+    try:
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer'))
+        )
+        
+        containers = driver.find_elements(By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer')
+        num_containers = len(containers)
+
+        print(num_containers)
+        while num_containers < 105 or num_containers >= 120:
+            if num_containers < 105:
+                perform_scroll(-80)  # Zoom in
+            elif num_containers >= 120:
+                perform_scroll(80)  # Zoom out
+            
+            time.sleep(1)  # Aguarde um momento para que o efeito do scroll se aplique
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer'))
+            )
+            containers = driver.find_elements(By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer')
+            num_containers = len(containers)
+
+        adjustment_complete.set()
+        
+    except Exception as e:
+       print(f"Erro inesperado. {str(e)}")
+
+
+
+def start_count_and_adjust():
+    thread = threading.Thread(target=count_and_adjust_divs)
+    thread.start()
+
+
+
+def extract_header_info():
+    try:
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".gw_table_head_row"))
+        )
+
+        cabecalho = driver.find_element(By.CSS_SELECTOR, ".gw_table_head_row")
+
+        cabecalho_texto = []
+        celulas = cabecalho.find_elements(By.CLASS_NAME, "gw_table_head_cell_content")
+        for celula in celulas:
+            # cabecalho_texto.append(celula.text.strip())
+            texto = celula.text.strip()
+            if texto != "Estratégia":
+                cabecalho_texto.append(texto)
+
+        
+        print(f"Cabeçalho: {', '.join(cabecalho_texto)}")
+        return [cabecalho_texto]  # Retornar como lista de lista para manter a consistência
+
+    except Exception as e:
+        print(f"Erro ao extrair informações do cabeçalho: {e}")
+        messagebox.showerror("Erro", f"Erro ao extrair informações do cabeçalho: {e}")
+        return []
+
+def extract_lines_info():
+    try:
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".f-column.large-scroll-track .gw_table_body_row"))
+        )
+
+        containers = driver.find_elements(By.CSS_SELECTOR, ".f-column.large-scroll-track .gw_table_body_row")
+
+        linhas_texto = []
+        for i, container in enumerate(containers, start=1):
+            linha = container.text.strip().split('\n')  # Separar as linhas em listas de strings
+            linhas_texto.append(linha)
+            print(f"Linha {i}: {linha}")
+
+        return linhas_texto
+
+    except Exception as e:
+        print(f"Erro ao extrair informações: {e}")
+        return []
 
 
 
@@ -67,16 +183,12 @@ def save_to_excel(workbook, sheet_name, all_data_to_print):
 
     for row_data in all_data_to_print:
         sheet.append(row_data)
-
-
     workbook.save(excel_file_path)
 
 
 
 
 
-
-# Atualização da função extract_and_save_all_info para usar índice dinâmico
 # Função para extrair outras informações únicas ignorando textos e capturando apenas números
 def extract_other_info(div_pai):
     try:
@@ -98,11 +210,20 @@ def extract_other_info(div_pai):
     
 
 
+
+def show_dialog():
+    root.lift()
+    root.focus_force()     
+
+
+def bring_dialog_to_front():
+    root.after(2 * 1000, show_dialog) 
+
+
 # Função principal para extrair e salvar todas as informações
 def extract_and_save_all_info(driver, excel_file_path, sheet_name):
     all_data_to_print = []
     previous_first_data = None
-
     # Ler dados existentes
     existing_data = set()
     if os.path.exists(excel_file_path):
@@ -113,7 +234,7 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
 
     try:
         while True:
-            WebDriverWait(driver, 20).until(
+            WebDriverWait(driver, 30).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer'))
             )
             containers = driver.find_elements(By.CSS_SELECTOR, '.gw_table_body_row.repfloptblrow.gw_table_body_row_hoverable.gw_hvr.gw_hvr_pcn.cursor-pointer')
@@ -171,14 +292,16 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
 
             all_data_to_print = []
 
+            pyautogui.click() 
             # Scroll down
-            if iteration_count % len(containers) == 0: 
+            if iteration_count % len(containers) == 0:
                 for _ in range(24):
                     pyautogui.scroll(-100)
                 time.sleep(0.5)
 
 
 
+        bring_dialog_to_front()
 
         return True, "Informações extraídas e salvas com sucesso."
 
@@ -190,20 +313,42 @@ def extract_and_save_all_info(driver, excel_file_path, sheet_name):
 
 
 def btn_call():
-    # time.sleep(5)
+    time.sleep(5)
     # print("INICIANDO SEQUENCIA!")
+    global adjustment_complete
+    adjustment_complete.clear()
+    threading.Thread(target=count_and_adjust_divs).start()
+    adjustment_complete.wait()
     global excel_file_path
     label_error.config(text="")
     file_name = entry.get()
     if not file_name:
-        label_error.config(text="Insira um nome para o arquivo Excel.", fg="red")
+        label_error.config(text="Insira um nome para o arquivo Excel:", fg="red")
         return
-    base_dir = "C:\\Users\\User\\Desktop\\"
-    excel_file_path = f"{base_dir}{file_name}.xlsx"
+    base_dir = os.path.abspath('planilhas')
+    excel_file_path = os.path.join(base_dir, f"{file_name}.xlsx")
     sheet_name = entry_sheet_name.get()
     if not sheet_name:
-        label_error.config(text="Insira um nome para a nova aba.", fg="red")
+        label_error.config(text="Insira um nome para a nova aba:", fg="red")
         return
+    
+
+    cabecalho_texto = extract_header_info()
+    linhas_texto = extract_lines_info()
+    if not cabecalho_texto or not linhas_texto:
+        label_error.config(text="Erro ao extrair informações.", fg="red")
+        return
+    
+    all_data_to_print = cabecalho_texto + linhas_texto
+    # Abra o workbook ou crie um novo se não existir
+    try:
+        workbook = load_workbook(excel_file_path)
+    except FileNotFoundError:
+        workbook = Workbook()
+        workbook.active.title = sheet_name
+
+    save_to_excel(workbook, sheet_name, all_data_to_print)
+
     success, message = extract_and_save_all_info(driver, excel_file_path, sheet_name)
     if success:
         label_error.config(text=message, fg="green")
@@ -215,8 +360,7 @@ def btn_call():
 
 # Caixa de diálogo
 def config_handler():
-    btn_call()
-
+    threading.Thread(target=btn_call).start()
 
 
 
